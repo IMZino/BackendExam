@@ -13,20 +13,20 @@ namespace BackendExam
         private Task m_DecoderTask;
         private Faker m_Faker = new Faker();
         private bool m_FastDataDecoder = true;
-        private int _count = 0;
+        private int m_count = 0;
         private ConcurrentQueue<ReceivedData> DataQueue = new ConcurrentQueue<ReceivedData>();
 
-        private SemaphoreSlim _semphore = new SemaphoreSlim(1);
+        private SemaphoreSlim m_semphore = new SemaphoreSlim(1);
         public ProducerConsumer(CancellationToken i_Token)
         {
             m_FetcherTask = Task.Run(async () =>
             {
                 while (!i_Token.IsCancellationRequested)
-                {
+                {   
                     var dataToProcess = new ReceivedData(await GenerateSampleData());
-                    Interlocked.Increment(ref _count);
+                    Interlocked.Increment(ref m_count);
                     DataQueue.Enqueue(dataToProcess);
-                    _semphore.Release();
+                    m_semphore.Release();
                 }
             }, i_Token);
 
@@ -47,7 +47,7 @@ namespace BackendExam
                 {
                     while (!i_Token.IsCancellationRequested)
                     {
-                        await _semphore.WaitAsync(i_Token);
+                        await m_semphore.WaitAsync(i_Token);
                         await ProcessConsumerData();
                     }
                 }
@@ -57,7 +57,7 @@ namespace BackendExam
                     {
                         await ProcessConsumerData();
                     }
-                    Debug.Assert(_count == 0);
+                    Debug.Assert(m_count == 0);
                 }
             },i_Token);
 
@@ -67,7 +67,7 @@ namespace BackendExam
             if (DataQueue.TryDequeue(out var dataConsumed))
             {
                 await DecodeData(dataConsumed.Data);
-                Interlocked.Decrement(ref _count);
+                Interlocked.Decrement(ref m_count);
             }
         }
         public async Task DecodeData(string i_Data)
